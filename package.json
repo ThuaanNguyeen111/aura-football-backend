@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "npx nodemon development",
-    "build": "shx rm -rf ./dist && tsc && tsc-alias",
+    "build": "rm -rf ./dist && tsc && npx tsc-alias",
     "start": "node dist/index.js production",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
