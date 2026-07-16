@@ -8,8 +8,9 @@ import { USERS_MESSAGES } from '~/constants/message'
 import { ErrorWithStatus } from '~/models/Errors'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { verifyToken } from '~/utils/jwt'
-import { UserRole } from '~/constants/enums'
+import { UserRole, UserVerifyStatus } from '~/constants/enums'
 import { TokenPayload } from '~/models/request/user.requests'
+import { ObjectId } from 'mongodb'
 
 export const registerValidator = validate(
   checkSchema(
@@ -52,7 +53,14 @@ export const loginValidator = validate(
           options: async (value, { req }) => {
             const hashedPassword = hashPassword(req.body.password)
             const user = await databaseService.users.findOne({ email: value, password: hashedPassword })
+
             if (!user) throw new Error(USERS_MESSAGES.EMAIL_OR_PASSWORD_IS_INCORRECT)
+
+            // 🔥 Logic chặn tài khoản bị Banned
+            if (user.verify === UserVerifyStatus.Banned) {
+              throw new Error('Tài khoản của bạn đã bị khóa do vi phạm quy định. Vui lòng liên hệ Ban quản lý!')
+            }
+
             req.user = user // Nhét user vào req để Controller dùng
             return true
           }
@@ -111,21 +119,43 @@ export const refreshTokenValidator = validate(
                 status: HTTP_STATUS.UNAUTHORIZED
               })
             }
+
             try {
               const [decoded, refreshTokenDb] = await Promise.all([
                 verifyToken({ token: value, secretOrPublicKey: process.env.JWT_SECRET_REFRESH_TOKEN as string }),
                 databaseService.refreshTokens.findOne({ token: value })
               ])
+
               if (!refreshTokenDb) {
                 throw new ErrorWithStatus({
                   message: USERS_MESSAGES.USED_REFRESH_TOKEN_OR_NOT_EXIST,
                   status: HTTP_STATUS.UNAUTHORIZED
                 })
               }
+
+              // 🔥 LOGIC CHẶN TÀI KHOẢN BỊ KHÓA NGAY KHI LÀM MỚI TOKEN
+              const user = await databaseService.users.findOne({ _id: new ObjectId(decoded.user_id) })
+              if (user?.verify === UserVerifyStatus.Banned) {
+                throw new ErrorWithStatus({
+                  message: 'Tài khoản của bạn đã bị khóa do vi phạm quy định!',
+                  status: HTTP_STATUS.FORBIDDEN
+                })
+              }
+
               ;(req as Request).decode_refresh_token = decoded
             } catch (error) {
-              throw new ErrorWithStatus({ message: 'Refresh token lỗi hoặc hết hạn', status: HTTP_STATUS.UNAUTHORIZED })
+              // 🔥 Đảm bảo giữ nguyên các lỗi hệ thống tự ném ra (như lỗi Banned ở trên)
+              if (error instanceof ErrorWithStatus) {
+                throw error
+              }
+
+              // Nếu là lỗi do thư viện jsonwebtoken ném ra thì báo token hết hạn
+              throw new ErrorWithStatus({
+                message: 'Refresh token lỗi hoặc đã hết hạn',
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
             }
+
             return true
           }
         }
@@ -190,3 +220,20 @@ export const adminValidator = (req: Request, res: Response, next: NextFunction) 
   }
   next()
 }
+export const depositWalletValidator = validate(
+  checkSchema(
+    {
+      amount: {
+        notEmpty: { errorMessage: 'Vui lòng nhập số tiền cần nạp' },
+        isNumeric: { errorMessage: 'Số tiền nạp phải là dạng số' },
+        custom: {
+          options: (value) => {
+            if (value <= 0) throw new Error('Số tiền nạp phải lớn hơn 0')
+            return true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)

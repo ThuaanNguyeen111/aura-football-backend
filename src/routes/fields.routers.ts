@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAllFieldsController, seedFieldsController } from '~/controllers/fields.controllers'
+import { getAllFieldsController, getFieldByIdController, seedFieldsController } from '~/controllers/fields.controllers'
 import { WarpAsync } from '~/utils/handlers'
 
 const fieldsRouter = Router()
@@ -9,5 +9,6 @@ fieldsRouter.post('/seed', WarpAsync(seedFieldsController))
 
 // [GET] /fields - Lấy danh sách toàn bộ sân bóng (Dành cho màn hình Home Flutter)
 fieldsRouter.get('/', WarpAsync(getAllFieldsController))
-
+// [GET] /fields/:field_id - Chi tiết 1 sân
+fieldsRouter.get('/:field_id', WarpAsync(getFieldByIdController))
 export default fieldsRouter

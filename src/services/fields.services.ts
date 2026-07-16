@@ -61,10 +61,54 @@ class FieldServices {
 
     return { message: 'Đã khởi tạo thành công hệ thống 6 sân bóng!' }
   }
-
+  async getFieldById(field_id: string) {
+    const field = await databaseService.fields.findOne({ _id: new ObjectId(field_id) })
+    if (!field) throw new Error('Không tìm thấy sân bóng')
+    return field
+  }
   async getAllFields() {
     // Trả về danh sách tất cả các sân đang hoạt động cho App Flutter
     return await databaseService.fields.find({ is_active: true }).toArray()
+  }
+  // Thay thế hoặc thêm hàm này vào class FieldServices
+  async getFields(query: any) {
+    const { type, max_price, lat, lng, radius } = query
+
+    // 1. Xây dựng bộ lọc cơ bản (Active)
+    const filter: any = { is_active: true }
+
+    // 2. Lọc theo loại sân (5 hoặc 7 người)
+    if (type) {
+      filter.type = Number(type)
+    }
+
+    // 3. Lọc theo mức giá tối đa
+    if (max_price) {
+      filter.price_per_hour = { $lte: Number(max_price) }
+    }
+
+    // 4. Nếu có tọa độ Map -> Dùng Aggregate $geoNear
+    if (lat && lng) {
+      const maxDistanceInMeters = (Number(radius) || 5) * 1000 // Mặc định 5km
+      const fields = await databaseService.fields
+        .aggregate([
+          {
+            $geoNear: {
+              near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+              distanceField: 'distance',
+              maxDistance: maxDistanceInMeters,
+              spherical: true,
+              query: filter // Kết hợp bộ lọc giá/loại sân vào Map
+            }
+          },
+          { $sort: { distance: 1 } } // Sắp xếp gần nhất lên đầu
+        ])
+        .toArray()
+      return fields
+    }
+
+    // 5. Nếu không có tọa độ Map -> Query bình thường
+    return await databaseService.fields.find(filter).sort({ created_at: -1 }).toArray()
   }
 }
 

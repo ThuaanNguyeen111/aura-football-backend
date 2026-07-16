@@ -12,3 +12,7 @@ export const createReviewController = async (
   const result = await reviewServices.createReview(user_id, req.body)
   res.json(result)
 }
+export const getFieldReviewsController = async (req: Request<{ field_id: string }>, res: Response) => {
+  const result = await reviewServices.getFieldReviews(req.params.field_id)
+  res.json({ message: 'Lấy danh sách đánh giá thành công', result })
+}

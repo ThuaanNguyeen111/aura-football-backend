@@ -5,6 +5,8 @@ import RefreshToken from '~/models/schema/refreshToken.schemas'
 import Field from '~/models/schema/fields.schemas'
 import Booking from '~/models/schema/bookings.schemas'
 import Review from '~/models/schema/reviews.schemas'
+import Voucher from '~/models/schema/vouchers.schemas'
+import Matchmaking from '~/models/schema/matchmaking.schemas'
 config()
 
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.ry9qbm9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -46,6 +48,12 @@ class DatabaseServices {
   }
   get reviews(): Collection<Review> {
     return this.db.collection(process.env.DB_REVIEWS_COLLECTION as string)
+  }
+  get vouchers(): Collection<Voucher> {
+    return this.db.collection(process.env.DB_VOUCHERS_COLLECTION || 'vouchers')
+  }
+  get matchmakings(): Collection<Matchmaking> {
+    return this.db.collection(process.env.DB_MATCHMAKING_COLLECTION || 'matchmakings')
   }
 }
 

@@ -193,6 +193,41 @@ class UserServices {
     const tokens = await this.login(userIdStr, userRole, userVerify)
     return tokens
   }
+  // Giả lập nạp tiền vào ví
+  async depositToWallet(user_id: string, amount: number) {
+    const result = await databaseService.users.findOneAndUpdate(
+      { _id: new ObjectId(user_id) },
+      {
+        $inc: { wallet_balance: amount }, // Cộng dồn số tiền
+        $set: { updated_at: new Date() }
+      },
+      { returnDocument: 'after' } // Lấy data sau khi đã cộng tiền
+    )
+
+    if (!result) throw new Error('Không tìm thấy tài khoản người dùng')
+
+    return {
+      message: `Đã nạp mô phỏng thành công ${amount.toLocaleString('vi-VN')} Đ vào ví!`,
+      wallet_balance: result.wallet_balance
+    }
+  }
+  // Cập nhật thông tin cá nhân
+  async updateMe(user_id: string, payload: { name?: string; phone_number?: string }) {
+    const updateData = {
+      ...(payload.name && { name: payload.name }),
+      ...(payload.phone_number && { phone_number: payload.phone_number }),
+      updated_at: new Date()
+    }
+
+    const result = await databaseService.users.findOneAndUpdate(
+      { _id: new ObjectId(user_id) },
+      { $set: updateData },
+      { returnDocument: 'after', projection: { password: 0, email_verify_token: 0, forgot_password_token: 0 } }
+    )
+    if (!result) throw new Error('Không tìm thấy tài khoản')
+
+    return { message: 'Cập nhật thông tin thành công', user: result }
+  }
 }
 
 const userServices = new UserServices()

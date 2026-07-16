@@ -9,6 +9,8 @@ interface ReviewType {
   comment: string
   created_at?: Date
   updated_at?: Date
+  admin_reply?: string
+  is_hidden?: boolean
 }
 
 export default class Review {
@@ -20,6 +22,8 @@ export default class Review {
   comment: string
   created_at: Date
   updated_at: Date
+  admin_reply: string
+  is_hidden: boolean
 
   constructor(review: ReviewType) {
     this._id = review._id || new ObjectId()
@@ -30,5 +34,7 @@ export default class Review {
     this.comment = review.comment
     this.created_at = review.created_at || new Date()
     this.updated_at = review.updated_at || new Date()
+    this.admin_reply = review.admin_reply || ''
+    this.is_hidden = review.is_hidden || false
   }
 }

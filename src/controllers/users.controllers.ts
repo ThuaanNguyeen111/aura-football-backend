@@ -35,7 +35,11 @@ export const forgotPasswordController = async (req: Request, res: Response) => {
   const result = await userServices.forgotPassword(email)
   res.json({ result })
 }
-
+export const updateMeController = async (req: Request, res: Response) => {
+  const tokenPayload = req.decode_authorization as TokenPayload
+  const result = await userServices.updateMe(tokenPayload.user_id, req.body)
+  res.json(result)
+}
 export const resetPasswordController = async (req: Request, res: Response) => {
   const { email, otpCode, password } = req.body
   const result = await userServices.resetPassword(email, otpCode, password)
@@ -60,4 +64,19 @@ export const googleOAuthController = async (req: Request, res: Response) => {
     message: 'Đăng nhập tài khoản Google thành công',
     result
   })
+}
+
+// Bạn nhớ import TokenPayload ở đầu file nếu chưa có nhé:
+// import { TokenPayload } from '~/models/request/user.requests'
+
+export const depositWalletController = async (req: Request, res: Response) => {
+  // Lấy user_id từ Token
+  const tokenPayload = req.decode_authorization as TokenPayload
+  const user_id = tokenPayload.user_id
+
+  // Ép kiểu amount thành số Number
+  const amount = Number(req.body.amount)
+
+  const result = await userServices.depositToWallet(user_id, amount)
+  res.json(result)
 }

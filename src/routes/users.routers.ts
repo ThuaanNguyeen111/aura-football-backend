@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  depositWalletController,
   forgotPasswordController,
   getMeController,
   googleOAuthController,
@@ -8,10 +9,12 @@ import {
   refreshAccessTokenController,
   registerController,
   resetPasswordController,
+  updateMeController,
   verifyOtpRegisterController
 } from '~/controllers/users.controllers'
 import {
   accessTokenValidator,
+  depositWalletValidator,
   forgotPasswordValidator,
   googleOAuthValidator,
   loginValidator,
@@ -47,7 +50,11 @@ usersRouter.post('/reset-password', resetPasswordValidator, WarpAsync(resetPassw
 // 8. [GET] /users/me - Lấy thông tin tài khoản cá nhân của người dùng di động
 usersRouter.get('/me', accessTokenValidator, WarpAsync(getMeController))
 
+// [PUT] /users/update-me - Cập nhật hồ sơ
+usersRouter.put('/update-me', accessTokenValidator, WarpAsync(updateMeController))
 // 9. [POST] /users/refresh-token - Cơ chế tự động làm mới mã Access Token âm thầm
 usersRouter.post('/refresh-token', refreshTokenValidator, WarpAsync(refreshAccessTokenController))
 
+// 10. [POST] /users/wallet/deposit - Nạp tiền giả lập vào ví
+usersRouter.post('/wallet/deposit', accessTokenValidator, depositWalletValidator, WarpAsync(depositWalletController))
 export default usersRouter
