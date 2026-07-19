@@ -1,20 +1,26 @@
 import { Router } from 'express'
-import { getBusyTimeSlotsController } from '~/controllers/bookings.controllers'
-import { getBusySlotsValidator } from '~/middlewares/bookings.middlewares'
-import { WarpAsync } from '~/utils/handlers'
-import { accessTokenValidator } from '~/middlewares/users.middlewares'
-import { createBookingValidator } from '~/middlewares/bookings.middlewares'
 import {
   createBookingController,
+  getBusyTimeSlotsController,
   getMyBookingHistoryController,
-  mockPaymentController
+  mockPaymentController,
+  cancelBookingController,
+  checkInBookingController,
+  rescheduleBookingController,
+  createRescheduleRequestController,
+  cancelRescheduleRequestController
 } from '~/controllers/bookings.controllers'
-import { cancelBookingValidator } from '~/middlewares/bookings.middlewares'
-import { cancelBookingController } from '~/controllers/bookings.controllers'
-import { checkInBookingController } from '~/controllers/bookings.controllers'
-import { adminValidator } from '~/middlewares/users.middlewares'
-import { rescheduleBookingValidator } from '~/middlewares/bookings.middlewares'
-import { rescheduleBookingController } from '~/controllers/bookings.controllers'
+import {
+  getBusySlotsValidator,
+  createBookingValidator,
+  cancelBookingValidator,
+  rescheduleBookingValidator,
+  createRescheduleRequestValidator,
+  cancelRescheduleRequestValidator
+} from '~/middlewares/bookings.middlewares'
+import { accessTokenValidator, adminValidator } from '~/middlewares/users.middlewares'
+import { WarpAsync } from '~/utils/handlers'
+
 const bookingsRouter = Router()
 
 // [GET] /bookings/busy-slots?field_id=...&date=2026-06-28
@@ -31,7 +37,23 @@ bookingsRouter.get('/history', accessTokenValidator, WarpAsync(getMyBookingHisto
 // [POST] /bookings/cancel - Hủy đặt sân & hoàn tiền ví nội bộ
 bookingsRouter.post('/cancel', accessTokenValidator, cancelBookingValidator, WarpAsync(cancelBookingController))
 
-// [POST] /bookings/reschedule - Dời lịch đặt sân sang khung giờ khác
+// [POST] /bookings/reschedule-request - Khách gửi yêu cầu dời lịch (Chờ admin xác nhận)
+bookingsRouter.post(
+  '/reschedule-request',
+  accessTokenValidator,
+  createRescheduleRequestValidator,
+  WarpAsync(createRescheduleRequestController)
+)
+
+// [POST] /bookings/reschedule-request/cancel - Khách hủy yêu cầu dời lịch đang chờ duyệt
+bookingsRouter.post(
+  '/reschedule-request/cancel',
+  accessTokenValidator,
+  cancelRescheduleRequestValidator,
+  WarpAsync(cancelRescheduleRequestController)
+)
+
+// [POST] /bookings/reschedule - Dời lịch đặt sân (Trực tiếp - legacy)
 bookingsRouter.post(
   '/reschedule',
   accessTokenValidator,
@@ -42,7 +64,7 @@ bookingsRouter.post(
 bookingsRouter.post(
   '/check-in',
   accessTokenValidator,
-  adminValidator, // 🔥 Đổi thành adminValidator
+  adminValidator,
   WarpAsync(checkInBookingController)
 )
 export default bookingsRouter

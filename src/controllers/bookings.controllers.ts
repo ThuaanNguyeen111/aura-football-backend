@@ -58,3 +58,16 @@ export const checkInBookingController = async (req: Request, res: Response) => {
   const result = await bookingServices.checkInBooking(booking_id)
   res.json(result)
 }
+
+export const createRescheduleRequestController = async (req: Request, res: Response) => {
+  const { user_id } = req.decode_authorization as TokenPayload
+  const result = await bookingServices.createRescheduleRequest(user_id, req.body)
+  res.json(result)
+}
+
+export const cancelRescheduleRequestController = async (req: Request, res: Response) => {
+  const { user_id } = req.decode_authorization as TokenPayload
+  const { request_id } = req.body
+  const result = await bookingServices.cancelRescheduleRequest(user_id, request_id)
+  res.json(result)
+}

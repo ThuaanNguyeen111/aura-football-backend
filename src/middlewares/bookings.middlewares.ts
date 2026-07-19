@@ -122,3 +122,56 @@ export const rescheduleBookingValidator = validate(
     ['body']
   )
 )
+
+export const createRescheduleRequestValidator = validate(
+  checkSchema(
+    {
+      booking_id: {
+        notEmpty: { errorMessage: 'ID vé đặt sân không được để trống' },
+        custom: {
+          options: (value) => {
+            if (!ObjectId.isValid(value)) throw new Error('ID vé đặt sân không hợp lệ')
+            return true
+          }
+        }
+      },
+      start_time: {
+        notEmpty: { errorMessage: 'Thời gian bắt đầu mới không được để trống' },
+        isISO8601: { errorMessage: 'Định dạng thời gian phải là ISO8601' }
+      },
+      end_time: {
+        notEmpty: { errorMessage: 'Thời gian kết thúc mới không được để trống' },
+        isISO8601: { errorMessage: 'Định dạng thời gian phải là ISO8601' },
+        custom: {
+          options: (value, { req }) => {
+            const startTime = new Date(req.body.start_time).getTime()
+            const endTime = new Date(value).getTime()
+            const durationHours = (endTime - startTime) / (1000 * 60 * 60)
+
+            if (startTime >= endTime) throw new Error('Thời gian kết thúc phải sau thời gian bắt đầu')
+            if (durationHours < 1.5) throw new Error('Khung giờ thuê tối thiểu là 1.5 giờ')
+            return true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)
+
+export const cancelRescheduleRequestValidator = validate(
+  checkSchema(
+    {
+      request_id: {
+        notEmpty: { errorMessage: 'ID yêu cầu dời lịch không được để trống' },
+        custom: {
+          options: (value) => {
+            if (!ObjectId.isValid(value)) throw new Error('ID yêu cầu dời lịch không hợp lệ')
+            return true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)

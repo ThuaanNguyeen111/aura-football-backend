@@ -7,6 +7,7 @@ import Booking from '~/models/schema/bookings.schemas'
 import Review from '~/models/schema/reviews.schemas'
 import Voucher from '~/models/schema/vouchers.schemas'
 import Matchmaking from '~/models/schema/matchmaking.schemas'
+import RescheduleRequest from '~/models/schema/rescheduleRequests.schemas'
 config()
 
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.ry9qbm9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -54,6 +55,9 @@ class DatabaseServices {
   }
   get matchmakings(): Collection<Matchmaking> {
     return this.db.collection(process.env.DB_MATCHMAKING_COLLECTION || 'matchmakings')
+  }
+  get rescheduleRequests(): Collection<RescheduleRequest> {
+    return this.db.collection(process.env.DB_RESCHEDULE_REQUESTS_COLLECTION || 'reschedule_requests')
   }
 }
 

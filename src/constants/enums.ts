@@ -31,3 +31,9 @@ export enum PaymentMethod {
   Cash = 0, // Thanh toán tại sân (Xác nhận ngay)
   Transfer = 1 // Chuyển khoản (Đưa vào trạng thái Pending chờ thanh toán)
 }
+
+export enum RescheduleStatus {
+  Pending = 0, // Chờ Admin xác nhận
+  Approved = 1, // Admin đã duyệt
+  Rejected = 2 // Admin từ chối
+}

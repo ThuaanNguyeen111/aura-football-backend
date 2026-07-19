@@ -13,7 +13,10 @@ import {
   toggleBanUserController,
   hideReviewController,
   replyReviewController,
-  createOfflineBookingController
+  createOfflineBookingController,
+  getRescheduleRequestsAdminController,
+  approveRescheduleRequestController,
+  rejectRescheduleRequestController
 } from '~/controllers/admin.controllers'
 import { createVoucherController, getAllVouchersAdminController } from '~/controllers/vouchers.controllers'
 
@@ -26,6 +29,30 @@ adminRouter.get(
   adminValidator, // 🔥 Đổi thành adminValidator
   getDailyBookingsValidator,
   WarpAsync(getDailyBookingsController)
+)
+
+// [GET] /admin/bookings/reschedule-requests - Admin xem danh sách yêu cầu dời lịch
+adminRouter.get(
+  '/bookings/reschedule-requests',
+  accessTokenValidator,
+  adminValidator,
+  WarpAsync(getRescheduleRequestsAdminController)
+)
+
+// [POST] /admin/bookings/reschedule-requests/:id/approve - Admin duyệt yêu cầu dời lịch
+adminRouter.post(
+  '/bookings/reschedule-requests/:id/approve',
+  accessTokenValidator,
+  adminValidator,
+  WarpAsync(approveRescheduleRequestController)
+)
+
+// [POST] /admin/bookings/reschedule-requests/:id/reject - Admin từ chối yêu cầu dời lịch
+adminRouter.post(
+  '/bookings/reschedule-requests/:id/reject',
+  accessTokenValidator,
+  adminValidator,
+  WarpAsync(rejectRescheduleRequestController)
 )
 
 // [POST] /admin/bookings/force-cancel - Admin hủy vé khẩn cấp & hoàn tiền 100% vào ví

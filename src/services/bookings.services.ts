@@ -1,9 +1,8 @@
 import { ObjectId } from 'mongodb'
 import databaseService from './database.services'
-import { BookingStatus } from '~/constants/enums'
-// Thêm vào class BookingServices trong src/services/bookings.services.ts
+import { BookingStatus, PaymentMethod, RescheduleStatus } from '~/constants/enums'
 import Booking from '~/models/schema/bookings.schemas'
-import { PaymentMethod } from '~/constants/enums'
+import RescheduleRequest from '~/models/schema/rescheduleRequests.schemas'
 class BookingServices {
   //!=====================================================================================================
   async getBusyTimeSlots(field_id: string, date: string) {
@@ -261,6 +260,242 @@ class BookingServices {
     )
 
     return { message: 'Check-in thành công! Khách hàng có thể vào sân.' }
+  }
+
+  //!=======================================================================
+  // Khách hàng gửi yêu cầu dời lịch (Chờ Admin duyệt)
+  async createRescheduleRequest(
+    user_id: string,
+    payload: { booking_id: string; start_time: string; end_time: string }
+  ) {
+    const bookingObjectId = new ObjectId(payload.booking_id)
+    const userObjectId = new ObjectId(user_id)
+    const newStartTime = new Date(payload.start_time)
+    const newEndTime = new Date(payload.end_time)
+
+    // 1. Kiểm tra vé thuộc user và chưa hủy / chưa hoàn thành
+    const booking = await databaseService.bookings.findOne({
+      _id: bookingObjectId,
+      user_id: userObjectId
+    })
+
+    if (!booking) throw new Error('Không tìm thấy vé đặt sân hoặc bạn không có quyền thao tác')
+    if (booking.status === BookingStatus.Cancelled) throw new Error('Không thể yêu cầu dời lịch cho vé đã bị hủy')
+    if (booking.status === BookingStatus.Completed) throw new Error('Không thể yêu cầu dời lịch cho vé đã hoàn thành')
+
+    // 2. Kiểm tra xem đã có yêu cầu dời lịch nào đang chờ duyệt (Pending) cho booking này không
+    const existingPending = await databaseService.rescheduleRequests.findOne({
+      booking_id: bookingObjectId,
+      status: RescheduleStatus.Pending
+    })
+    if (existingPending) {
+      throw new Error('Vé này đã có yêu cầu dời lịch đang chờ xác nhận. Vui lòng chờ Admin xử lý!')
+    }
+
+    // 3. Kiểm tra trùng lịch với các booking khác trên cùng hệ thống sân
+    const isOverlap = await databaseService.bookings.findOne({
+      _id: { $ne: bookingObjectId },
+      locked_field_ids: { $in: booking.locked_field_ids },
+      status: { $in: [BookingStatus.Pending, BookingStatus.Confirmed] },
+      $or: [
+        { start_time: { $lt: newEndTime, $gte: newStartTime } },
+        { end_time: { $gt: newStartTime, $lte: newEndTime } },
+        { start_time: { $lte: newStartTime }, end_time: { $gte: newEndTime } }
+      ]
+    })
+
+    if (isOverlap) {
+      throw new Error('Khung giờ mới đã có người đặt hoặc bị trùng lặp. Vui lòng chọn khoảng thời gian khác!')
+    }
+
+    // 4. Tạo yêu cầu dời lịch với status = Pending (0)
+    const newRequest = new RescheduleRequest({
+      booking_id: bookingObjectId,
+      user_id: userObjectId,
+      field_id: booking.field_id,
+      old_start_time: booking.start_time,
+      old_end_time: booking.end_time,
+      new_start_time: newStartTime,
+      new_end_time: newEndTime,
+      status: RescheduleStatus.Pending
+    })
+
+    await databaseService.rescheduleRequests.insertOne(newRequest)
+
+    return {
+      message: 'Đã gửi yêu cầu dời lịch, vui lòng chờ admin xác nhận',
+      result: newRequest
+    }
+  }
+
+  //!=======================================================================
+  // Khách hàng hủy yêu cầu dời lịch đang Pending
+  async cancelRescheduleRequest(user_id: string, request_id: string) {
+    const requestObjectId = new ObjectId(request_id)
+    const userObjectId = new ObjectId(user_id)
+
+    const request = await databaseService.rescheduleRequests.findOne({
+      _id: requestObjectId,
+      user_id: userObjectId
+    })
+
+    if (!request) throw new Error('Không tìm thấy yêu cầu dời lịch')
+    if (request.status !== RescheduleStatus.Pending) {
+      throw new Error('Chỉ có thể hủy yêu cầu dời lịch đang ở trạng thái chờ duyệt (Pending)')
+    }
+
+    await databaseService.rescheduleRequests.deleteOne({ _id: requestObjectId })
+
+    return { message: 'Đã hủy yêu cầu dời lịch thành công' }
+  }
+
+  //!=======================================================================
+  // Admin xem danh sách yêu cầu dời lịch
+  async getRescheduleRequestsAdmin(status?: number) {
+    const matchStage: any = {}
+    if (status !== undefined && !isNaN(status)) {
+      matchStage.status = Number(status)
+    }
+
+    const requests = await databaseService.rescheduleRequests
+      .aggregate([
+        { $match: matchStage },
+        {
+          $lookup: {
+            from: process.env.DB_BOOKINGS_COLLECTION as string,
+            localField: 'booking_id',
+            foreignField: '_id',
+            as: 'booking_info'
+          }
+        },
+        { $unwind: { path: '$booking_info', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: process.env.DB_USERS_COLLECTION as string,
+            localField: 'user_id',
+            foreignField: '_id',
+            as: 'user_info'
+          }
+        },
+        { $unwind: { path: '$user_info', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: process.env.DB_FIELDS_COLLECTION as string,
+            localField: 'field_id',
+            foreignField: '_id',
+            as: 'field_info'
+          }
+        },
+        { $unwind: { path: '$field_info', preserveNullAndEmptyArrays: true } },
+        { $sort: { created_at: -1 } },
+        {
+          $project: {
+            'user_info.password': 0,
+            'user_info.email_verify_token': 0,
+            'user_info.forgot_password_token': 0
+          }
+        }
+      ])
+      .toArray()
+
+    return requests
+  }
+
+  //!=======================================================================
+  // Admin duyệt yêu cầu dời lịch
+  async approveRescheduleRequest(admin_id: string, request_id: string) {
+    const requestObjectId = new ObjectId(request_id)
+    const adminObjectId = new ObjectId(admin_id)
+
+    const request = await databaseService.rescheduleRequests.findOne({ _id: requestObjectId })
+    if (!request) throw new Error('Không tìm thấy yêu cầu dời lịch')
+    if (request.status !== RescheduleStatus.Pending) {
+      throw new Error('Yêu cầu này không ở trạng thái chờ duyệt (Pending)')
+    }
+
+    const booking = await databaseService.bookings.findOne({ _id: request.booking_id })
+    if (!booking) throw new Error('Không tìm thấy vé đặt sân tương ứng')
+    if (booking.status === BookingStatus.Cancelled) {
+      throw new Error('Vé đặt sân này đã bị hủy từ trước')
+    }
+
+    // Re-check trùng lịch trước khi duyệt
+    const isOverlap = await databaseService.bookings.findOne({
+      _id: { $ne: booking._id },
+      locked_field_ids: { $in: booking.locked_field_ids },
+      status: { $in: [BookingStatus.Pending, BookingStatus.Confirmed] },
+      $or: [
+        { start_time: { $lt: request.new_end_time, $gte: request.new_start_time } },
+        { end_time: { $gt: request.new_start_time, $lte: request.new_end_time } },
+        { start_time: { $lte: request.new_start_time }, end_time: { $gte: request.new_end_time } }
+      ]
+    })
+
+    if (isOverlap) {
+      const error: any = new Error('Khung giờ mới đã bị chiếm. Không thể duyệt yêu cầu dời lịch này!')
+      error.status = 400
+      throw error
+    }
+
+    // 1. Cập nhật booking thời gian mới
+    await databaseService.bookings.updateOne(
+      { _id: booking._id },
+      {
+        $set: {
+          start_time: request.new_start_time,
+          end_time: request.new_end_time,
+          updated_at: new Date()
+        }
+      }
+    )
+
+    // 2. Cập nhật trạng thái request -> Approved (1)
+    await databaseService.rescheduleRequests.updateOne(
+      { _id: request._id },
+      {
+        $set: {
+          status: RescheduleStatus.Approved,
+          reviewed_by: adminObjectId,
+          updated_at: new Date()
+        }
+      }
+    )
+
+    return {
+      message: 'Duyệt yêu cầu dời lịch thành công!',
+      request_id,
+      booking_id: booking._id
+    }
+  }
+
+  //!=======================================================================
+  // Admin từ chối yêu cầu dời lịch
+  async rejectRescheduleRequest(admin_id: string, request_id: string, reason?: string) {
+    const requestObjectId = new ObjectId(request_id)
+    const adminObjectId = new ObjectId(admin_id)
+
+    const request = await databaseService.rescheduleRequests.findOne({ _id: requestObjectId })
+    if (!request) throw new Error('Không tìm thấy yêu cầu dời lịch')
+    if (request.status !== RescheduleStatus.Pending) {
+      throw new Error('Yêu cầu này không ở trạng thái chờ duyệt (Pending)')
+    }
+
+    await databaseService.rescheduleRequests.updateOne(
+      { _id: request._id },
+      {
+        $set: {
+          status: RescheduleStatus.Rejected,
+          reject_reason: reason || 'Khung giờ đã kín / lý do khác',
+          reviewed_by: adminObjectId,
+          updated_at: new Date()
+        }
+      }
+    )
+
+    return {
+      message: 'Từ chối yêu cầu dời lịch thành công!',
+      request_id
+    }
   }
 }
 

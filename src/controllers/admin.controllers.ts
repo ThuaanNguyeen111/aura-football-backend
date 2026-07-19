@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { ParamsDictionary } from 'express-serve-static-core'
 import adminServices from '~/services/admin.services'
+import bookingServices from '~/services/bookings.services'
 import {
   GetDailyBookingsQuery,
   RevenueQuery,
@@ -83,4 +84,25 @@ export const createOfflineBookingController = async (req: Request, res: Response
   const tokenPayload = req.decode_authorization as TokenPayload
   const result = await adminServices.createOfflineBooking(tokenPayload.user_id, req.body)
   res.json({ message: 'Tạo vé Offline thành công', result })
+}
+
+export const getRescheduleRequestsAdminController = async (req: Request, res: Response) => {
+  const status = req.query.status !== undefined ? Number(req.query.status) : undefined
+  const result = await bookingServices.getRescheduleRequestsAdmin(status)
+  res.json({ message: 'Lấy danh sách yêu cầu dời lịch thành công', result })
+}
+
+export const approveRescheduleRequestController = async (req: Request<{ id: string }>, res: Response) => {
+  const tokenPayload = req.decode_authorization as TokenPayload
+  const { id } = req.params
+  const result = await bookingServices.approveRescheduleRequest(tokenPayload.user_id, id)
+  res.json(result)
+}
+
+export const rejectRescheduleRequestController = async (req: Request<{ id: string }>, res: Response) => {
+  const tokenPayload = req.decode_authorization as TokenPayload
+  const { id } = req.params
+  const { reason } = req.body
+  const result = await bookingServices.rejectRescheduleRequest(tokenPayload.user_id, id, reason)
+  res.json(result)
 }
