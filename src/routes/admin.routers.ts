@@ -15,7 +15,7 @@ import {
   replyReviewController,
   createOfflineBookingController
 } from '~/controllers/admin.controllers'
-import { createVoucherController } from '~/controllers/vouchers.controllers'
+import { createVoucherController, getAllVouchersAdminController } from '~/controllers/vouchers.controllers'
 
 const adminRouter = Router()
 
@@ -60,4 +60,6 @@ adminRouter.post('/reviews/:review_id/reply', accessTokenValidator, adminValidat
 adminRouter.put('/reviews/:review_id/hide', accessTokenValidator, adminValidator, WarpAsync(hideReviewController))
 // [POST] /admin/vouchers - Admin tạo mã giảm giá mới
 adminRouter.post('/vouchers', accessTokenValidator, adminValidator, WarpAsync(createVoucherController))
+// [GET] /admin/vouchers - Admin xem toàn bộ danh sách mã giảm giá
+adminRouter.get('/vouchers', accessTokenValidator, adminValidator, WarpAsync(getAllVouchersAdminController))
 export default adminRouter

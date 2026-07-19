@@ -19,3 +19,15 @@ export const checkVoucherController = async (req: Request, res: Response) => {
   const result = await voucherServices.checkVoucher(code, base_price)
   res.json({ message: 'Áp dụng mã giảm giá thành công', result })
 }
+
+// User lấy danh sách mã giảm giá khả dụng
+export const getVouchersController = async (req: Request, res: Response) => {
+  const result = await voucherServices.getVouchers()
+  res.json({ message: 'Lấy danh sách mã giảm giá thành công', result })
+}
+
+// Admin lấy tất cả danh sách mã giảm giá
+export const getAllVouchersAdminController = async (req: Request, res: Response) => {
+  const result = await voucherServices.getAllVouchersAdmin()
+  res.json({ message: 'Lấy toàn bộ danh sách mã giảm giá thành công', result })
+}

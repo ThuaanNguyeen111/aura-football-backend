@@ -33,6 +33,27 @@ class VoucherServices {
       final_price: base_price - discount_amount
     }
   }
+
+  // Lấy danh sách voucher còn hiệu lực cho Khách hàng (User)
+  async getVouchers() {
+    const now = new Date()
+    const vouchers = await databaseService.vouchers
+      .find({
+        is_active: true,
+        expiration_date: { $gte: now }
+      })
+      .sort({ created_at: -1 })
+      .toArray()
+
+    // Lọc các voucher chưa vượt quá số lượt dùng tối đa
+    return vouchers.filter((v) => v.used_count < v.usage_limit)
+  }
+
+  // Admin lấy toàn bộ danh sách mã giảm giá
+  async getAllVouchersAdmin() {
+    const vouchers = await databaseService.vouchers.find({}).sort({ created_at: -1 }).toArray()
+    return vouchers
+  }
 }
 const voucherServices = new VoucherServices()
 export default voucherServices
