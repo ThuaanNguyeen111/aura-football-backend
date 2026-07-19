@@ -47,8 +47,18 @@ export const resetPasswordController = async (req: Request, res: Response) => {
 }
 
 export const getMeController = async (req: Request, res: Response) => {
-  const { user_id } = req.decode_authorization as TokenPayload // Lấy ID từ token đã giải mã[cite: 41]
+  const { user_id } = req.decode_authorization as TokenPayload // Lấy ID từ token đã giải mã
   const user = await userServices.getMe(user_id)
+  if (user) {
+    res.json({
+      message: USERS_MESSAGES.GET_ME_SUCCESS,
+      result: {
+        ...user,
+        user_role: user.role // Thêm alias user_role phục vụ Flutter Mobile App
+      }
+    })
+    return
+  }
   res.json({ message: USERS_MESSAGES.GET_ME_SUCCESS, result: user })
 }
 

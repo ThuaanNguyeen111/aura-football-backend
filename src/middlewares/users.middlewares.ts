@@ -212,8 +212,9 @@ export const googleOAuthValidator = validate(
   )
 )
 export const adminValidator = (req: Request, res: Response, next: NextFunction) => {
-  const { user_role } = req.decode_authorization as TokenPayload
-  if (user_role !== UserRole.Admin) {
+  const decoded = req.decode_authorization as any
+  const role = decoded?.role ?? decoded?.user_role
+  if (role !== UserRole.Admin) {
     return res.status(403).json({
       message: 'Quyền truy cập bị từ chối. Chức năng này chỉ dành cho Ban quản lý (Admin)!'
     })
